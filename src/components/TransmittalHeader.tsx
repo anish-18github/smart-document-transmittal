@@ -1,4 +1,4 @@
-import { defaultFormData, type TransmittalFormData } from "@/data/approvedVendors";
+import { type TransmittalFormData } from "@/data/approvedVendors";
 
 interface TransmittalHeaderProps {
   formData: TransmittalFormData;
@@ -12,7 +12,6 @@ const TransmittalHeader = ({ formData }: TransmittalHeaderProps) => {
     { label: "Project No", value: formData.projectNo || "—" },
     { label: "Location", value: formData.location },
     { label: "Work Order #", value: formData.workOrderNo },
-    { label: "From", value: formData.from },
   ];
 
   return (

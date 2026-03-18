@@ -87,7 +87,6 @@ export type MakeStatus = "approved" | "alternative" | "non_tender";
 export interface ChecklistItem {
   slNo: number;
   description: string;
-  annexure: string;
   remarks: string;
 }
 
@@ -95,31 +94,26 @@ export const checklistItems: ChecklistItem[] = [
   {
     slNo: 1,
     description: "Company Profile, Technical Data Sheet (TDS) / Product Catalogue with All Accessories & Complete System",
-    annexure: "Annexure # 1",
     remarks: "If a Complete System / Assembly is proposed, then a List (TDS & Test Reports) of All Accessories shall be attached.",
   },
   {
     slNo: 2,
     description: "Approved Vendor/Brand/Make List (Highlighted)",
-    annexure: "Annexure # 2",
     remarks: "",
   },
   {
     slNo: 3,
     description: "Project Specification, BOQ, Drawings",
-    annexure: "Annexure # 3",
     remarks: "",
   },
   {
     slNo: 4,
     description: "Compliance Statement against WO/Specification/BOQ, Relevant Indian & International Standards Codes",
-    annexure: "Annexure # 4",
     remarks: "",
   },
   {
     slNo: 5,
     description: "Test Reports - MTC & 3rd Party (Sample)",
-    annexure: "Annexure # 5",
     remarks: "",
   },
 ];
@@ -131,7 +125,6 @@ export interface TransmittalFormData {
   projectNo: string;
   location: string;
   workOrderNo: string;
-  from: string;
   documentType: DocumentType | "";
   materialType: MaterialType | "";
   product: string;
@@ -141,27 +134,46 @@ export interface TransmittalFormData {
   makeStatus: MakeStatus | "";
   checklistProvided: Record<number, boolean>;
   checklistRemarks: Record<number, string>;
+  checklistFiles: Record<number, File | null>;
   transmittedFor: string;
   specReference: string;
 }
 
-export const defaultFormData: TransmittalFormData = {
-  transmittalRefNo: "HIPPL/API/KLP/PPL/TMT/001",
-  date: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }),
-  projectName: "Kolhur Logistics Park",
-  projectNo: "",
-  location: "Kolhur, Karnataka",
-  workOrderNo: "WO/KOTBLDF/24-25/2/1",
-  from: "Associated Projects Infra",
-  documentType: "",
-  materialType: "",
-  product: "",
-  brand: "",
-  materialRefNo: "",
-  areaOfApplication: "",
-  makeStatus: "",
-  checklistProvided: {},
-  checklistRemarks: {},
-  transmittedFor: "Approval",
-  specReference: "",
-};
+function generateTransmittalRef(): string {
+  const num = String(Math.floor(Math.random() * 900) + 100);
+  return `HIPPL/API/HLP/PPL/TMT/${num}`;
+}
+
+function generateWorkOrderNo(): string {
+  const now = new Date();
+  const fy1 = now.getMonth() >= 3 ? now.getFullYear() % 100 : (now.getFullYear() - 1) % 100;
+  const fy2 = fy1 + 1;
+  const seq = Math.floor(Math.random() * 9) + 1;
+  return `WO/HLPBLDF/${fy1}-${fy2}/${seq}/1`;
+}
+
+export function createDefaultFormData(): TransmittalFormData {
+  return {
+    transmittalRefNo: generateTransmittalRef(),
+    date: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }),
+    projectName: "Horizon Logistics Park",
+    projectNo: "",
+    location: "Fetching location…",
+    workOrderNo: generateWorkOrderNo(),
+    documentType: "",
+    materialType: "",
+    product: "",
+    brand: "",
+    materialRefNo: "",
+    areaOfApplication: "",
+    makeStatus: "",
+    checklistProvided: {},
+    checklistRemarks: {},
+    checklistFiles: {},
+    transmittedFor: "Approval",
+    specReference: "",
+  };
+}
+
+// Keep for backward compat but prefer createDefaultFormData()
+export const defaultFormData: TransmittalFormData = createDefaultFormData();
