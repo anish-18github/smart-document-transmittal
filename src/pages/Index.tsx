@@ -7,6 +7,12 @@ import MaterialTypeSelector from "@/components/MaterialTypeSelector";
 import ProductBrandSelector from "@/components/ProductBrandSelector";
 import MaterialChecklist from "@/components/MaterialChecklist";
 import DocumentPreview from "@/components/DocumentPreview";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 import {
   type TransmittalFormData,
   type DocumentType,
@@ -28,8 +34,8 @@ const section = {
 const Index = () => {
   const [formData, setFormData] = useState<TransmittalFormData>(createDefaultFormData);
   const [masNumber] = useState(() => Math.floor(Math.random() * 900) + 100);
+  const isMobile = useIsMobile();
 
-  // Fetch geolocation on mount
   useEffect(() => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -102,121 +108,135 @@ const Index = () => {
     }));
   };
 
+  const formContent = (
+    <div className="space-y-6 min-w-0 print:hidden p-4 sm:p-6 overflow-y-auto h-full">
+      <TransmittalHeader formData={formData} />
+
+      <section className="bg-surface border border-border rounded-xl p-5 shadow-sm">
+        <h2 className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-4">
+          Type of Document / Material Submittal Type
+        </h2>
+        <div className="space-y-4">
+          <DocTypeSelector selected={formData.documentType} onSelect={handleDocTypeSelect} showTitle={false} />
+          <AnimatePresence mode="wait">
+            {formData.documentType === "Material Submittal" && (
+              <motion.div
+                key="material-type"
+                variants={section}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                className="overflow-hidden"
+              >
+                <MaterialTypeSelector
+                  selected={formData.materialType}
+                  onSelect={handleMaterialTypeSelect}
+                  showTitle={false}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </section>
+
+      <AnimatePresence mode="wait">
+        {formData.documentType === "Material Submittal" && formData.materialType && (
+          <motion.section
+            key="product-brand"
+            variants={section}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="bg-surface border border-border rounded-xl p-5 shadow-sm overflow-hidden"
+          >
+            <ProductBrandSelector
+              product={formData.product}
+              brand={formData.brand}
+              areaOfApplication={formData.areaOfApplication}
+              specReference={formData.specReference}
+              onProductChange={handleProductChange}
+              onBrandChange={(brand) => update({ brand })}
+              onAreaChange={(areaOfApplication) => update({ areaOfApplication })}
+              onSpecChange={(specReference) => update({ specReference })}
+            />
+          </motion.section>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence mode="wait">
+        {formData.documentType === "Material Submittal" &&
+          formData.materialType &&
+          formData.product &&
+          formData.brand && (
+            <motion.section
+              key="checklist"
+              variants={section}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="bg-surface border border-border rounded-xl p-5 shadow-sm overflow-hidden"
+            >
+              <MaterialChecklist
+                materialRefNo={formData.materialRefNo}
+                materialDescription={formData.product}
+                manufacturer={formData.brand}
+                materialRemarks={formData.materialRemarks}
+                makeStatus={formData.makeStatus}
+                checklistProvided={formData.checklistProvided}
+                checklistRemarks={formData.checklistRemarks}
+                checklistFiles={formData.checklistFiles}
+                onMaterialRemarksChange={(materialRemarks) => update({ materialRemarks })}
+                onMakeStatusChange={(makeStatus: MakeStatus) => update({ makeStatus })}
+                onChecklistToggle={handleChecklistToggle}
+                onChecklistRemarkChange={handleChecklistRemarkChange}
+                onFileUpload={handleFileUpload}
+              />
+            </motion.section>
+          )}
+      </AnimatePresence>
+
+      <p className="text-[11px] text-muted-foreground pb-4">
+        The document on the right updates as you fill the form. Drag the divider to resize panels.
+      </p>
+    </div>
+  );
+
+  const previewContent = (
+    <div className="h-full flex flex-col print:static print:block print:h-auto">
+      <DocumentPreview formData={formData} variant="embedded" />
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Top bar */}
-      <header className="border-b border-border bg-surface print:hidden">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 flex items-center gap-3">
+    <div className="min-h-screen h-screen flex flex-col bg-background">
+      <header className="border-b border-border bg-surface print:hidden shrink-0">
+        <div className="px-4 sm:px-6 py-3 flex items-center gap-3">
           <FileText className="w-5 h-5 text-primary" />
           <h1 className="text-sm font-bold text-foreground tracking-tight">Transmittal of Documents</h1>
-          <span className="text-[10px] font-mono text-muted-foreground bg-secondary px-2 py-0.5 rounded-sm ml-auto tabular-nums">
+          <span className="text-[10px] font-mono text-muted-foreground bg-secondary px-2 py-0.5 rounded-lg ml-auto tabular-nums">
             HIPPL/QAP/FM/TDC/01 • Rev 1
           </span>
         </div>
       </header>
 
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6 lg:py-8">
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(360px,42%)] gap-8 xl:gap-10 items-start">
-          {/* Left: form */}
-          <div className="space-y-8 min-w-0 print:hidden">
-            <TransmittalHeader formData={formData} />
-
-            {/* Document Type / Material Submittal Type (merged section) */}
-            <section className="bg-surface border border-border rounded-sm p-6">
-              <h2 className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-4">
-                Type of Document / Material Submittal Type
-              </h2>
-              <div className="space-y-4">
-                <DocTypeSelector selected={formData.documentType} onSelect={handleDocTypeSelect} showTitle={false} />
-                <AnimatePresence mode="wait">
-                  {formData.documentType === "Material Submittal" && (
-                    <motion.div
-                      key="material-type"
-                      variants={section}
-                      initial="initial"
-                      animate="animate"
-                      exit="exit"
-                      className="overflow-hidden"
-                    >
-                      <MaterialTypeSelector
-                        selected={formData.materialType}
-                        onSelect={handleMaterialTypeSelect}
-                        showTitle={false}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </section>
-
-            <AnimatePresence mode="wait">
-              {formData.documentType === "Material Submittal" && formData.materialType && (
-                <motion.section
-                  key="product-brand"
-                  variants={section}
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                  className="bg-surface border border-border rounded-sm p-6 overflow-hidden"
-                >
-                  <ProductBrandSelector
-                    product={formData.product}
-                    brand={formData.brand}
-                    areaOfApplication={formData.areaOfApplication}
-                    specReference={formData.specReference}
-                    onProductChange={handleProductChange}
-                    onBrandChange={(brand) => update({ brand })}
-                    onAreaChange={(areaOfApplication) => update({ areaOfApplication })}
-                    onSpecChange={(specReference) => update({ specReference })}
-                  />
-                </motion.section>
-              )}
-            </AnimatePresence>
-
-            <AnimatePresence mode="wait">
-              {formData.documentType === "Material Submittal" &&
-                formData.materialType &&
-                formData.product &&
-                formData.brand && (
-                  <motion.section
-                    key="checklist"
-                    variants={section}
-                    initial="initial"
-                    animate="animate"
-                    exit="exit"
-                    className="bg-surface border border-border rounded-sm p-6 overflow-hidden"
-                  >
-                    <MaterialChecklist
-                      materialRefNo={formData.materialRefNo}
-                      materialDescription={formData.product}
-                      manufacturer={formData.brand}
-                      materialRemarks={formData.materialRemarks}
-                      makeStatus={formData.makeStatus}
-                      checklistProvided={formData.checklistProvided}
-                      checklistRemarks={formData.checklistRemarks}
-                      checklistFiles={formData.checklistFiles}
-                      onMaterialRemarksChange={(materialRemarks) => update({ materialRemarks })}
-                      onMakeStatusChange={(makeStatus: MakeStatus) => update({ makeStatus })}
-                      onChecklistToggle={handleChecklistToggle}
-                      onChecklistRemarkChange={handleChecklistRemarkChange}
-                      onFileUpload={handleFileUpload}
-                    />
-                  </motion.section>
-                )}
-            </AnimatePresence>
-
-            <p className="text-[11px] text-muted-foreground">
-              The document on the right updates as you fill the form. Use <strong>Print / Save PDF</strong> in the
-              preview panel when you are ready.
-            </p>
+      <div className="flex-1 min-h-0 print:block print:h-auto">
+        {isMobile ? (
+          <div className="flex flex-col h-full overflow-y-auto">
+            <div className="flex-1 min-h-0">{formContent}</div>
+            <div className="border-t border-border min-h-[50vh]">{previewContent}</div>
           </div>
-
-          {/* Right: live preview (desktop); below form on smaller screens */}
-          <aside className="xl:sticky xl:top-6 xl:h-[calc(100vh-5.5rem)] min-h-[50vh] flex flex-col print:static print:block print:h-auto w-full">
-            <DocumentPreview formData={formData} variant="embedded" />
-          </aside>
-        </div>
-      </main>
+        ) : (
+          <ResizablePanelGroup direction="horizontal" className="h-full">
+            <ResizablePanel defaultSize={55} minSize={30} className="overflow-y-auto">
+              {formContent}
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={45} minSize={25} className="overflow-hidden">
+              {previewContent}
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        )}
+      </div>
     </div>
   );
 };
