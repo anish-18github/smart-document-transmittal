@@ -129,29 +129,36 @@ const Index = () => {
         {/* Auto-populated header */}
         <TransmittalHeader formData={formData} />
 
-        {/* Document Type Selection */}
+        {/* Document Type / Material Submittal Type (merged section) */}
         <section className="bg-surface border border-border rounded-sm p-6">
-          <DocTypeSelector selected={formData.documentType} onSelect={handleDocTypeSelect} />
+          <h2 className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-4">
+            Type of Document / Material Submittal Type
+          </h2>
+          <div className="space-y-4">
+            <DocTypeSelector selected={formData.documentType} onSelect={handleDocTypeSelect} showTitle={false} />
+            <AnimatePresence mode="wait">
+              {formData.documentType === "Material Submittal" && (
+                <motion.div
+                  key="material-type"
+                  variants={section}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  className="overflow-hidden"
+                >
+                  <MaterialTypeSelector
+                    selected={formData.materialType}
+                    onSelect={handleMaterialTypeSelect}
+                    showTitle={false}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </section>
 
-        {/* Material Submittal Flow */}
         <AnimatePresence mode="wait">
-          {formData.documentType === "Material Submittal" && (
-            <motion.section
-              key="material-type"
-              variants={section}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              className="bg-surface border border-border rounded-sm p-6 overflow-hidden"
-            >
-              <MaterialTypeSelector selected={formData.materialType} onSelect={handleMaterialTypeSelect} />
-            </motion.section>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence mode="wait">
-          {formData.documentType === "Material Submittal" && formData.materialType === "single" && (
+          {formData.documentType === "Material Submittal" && formData.materialType && (
             <motion.section
               key="product-brand"
               variants={section}
@@ -176,7 +183,7 @@ const Index = () => {
 
         <AnimatePresence mode="wait">
           {formData.documentType === "Material Submittal" &&
-            formData.materialType === "single" &&
+            formData.materialType &&
             formData.product &&
             formData.brand && (
               <motion.section
@@ -191,10 +198,12 @@ const Index = () => {
                   materialRefNo={formData.materialRefNo}
                   materialDescription={formData.product}
                   manufacturer={formData.brand}
+                  materialRemarks={formData.materialRemarks}
                   makeStatus={formData.makeStatus}
                   checklistProvided={formData.checklistProvided}
                   checklistRemarks={formData.checklistRemarks}
                   checklistFiles={formData.checklistFiles}
+                  onMaterialRemarksChange={(materialRemarks) => update({ materialRemarks })}
                   onMakeStatusChange={(makeStatus: MakeStatus) => update({ makeStatus })}
                   onChecklistToggle={handleChecklistToggle}
                   onChecklistRemarkChange={handleChecklistRemarkChange}

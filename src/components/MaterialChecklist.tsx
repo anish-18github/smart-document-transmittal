@@ -8,10 +8,12 @@ interface MaterialChecklistProps {
   materialRefNo: string;
   materialDescription: string;
   manufacturer: string;
+  materialRemarks: string;
   makeStatus: MakeStatus | "";
   checklistProvided: Record<number, boolean>;
   checklistRemarks: Record<number, string>;
   checklistFiles: Record<number, File | null>;
+  onMaterialRemarksChange: (remarks: string) => void;
   onMakeStatusChange: (status: MakeStatus) => void;
   onChecklistToggle: (slNo: number) => void;
   onChecklistRemarkChange: (slNo: number, remark: string) => void;
@@ -28,10 +30,12 @@ const MaterialChecklist = ({
   materialRefNo,
   materialDescription,
   manufacturer,
+  materialRemarks,
   makeStatus,
   checklistProvided,
   checklistRemarks,
   checklistFiles,
+  onMaterialRemarksChange,
   onMakeStatusChange,
   onChecklistToggle,
   onChecklistRemarkChange,
@@ -79,6 +83,17 @@ const MaterialChecklist = ({
             <span className="text-sm font-medium text-foreground">{manufacturer || "—"}</span>
           </div>
         </div>
+        <div>
+          <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground block">
+            Remarks
+          </span>
+          <Input
+            value={materialRemarks}
+            onChange={(e) => onMaterialRemarksChange(e.target.value)}
+            className="mt-1 h-9 text-xs rounded-sm border-border bg-surface"
+            placeholder="Enter remarks (will appear in transmittal table)"
+          />
+        </div>
       </div>
 
       {/* Checklist Table */}
@@ -119,7 +134,19 @@ const MaterialChecklist = ({
                         {makeStatusOptions.map((opt) => (
                           <button
                             key={opt.value}
-                            onClick={() => onMakeStatusChange(opt.value)}
+                            onClick={() => {
+                              onMakeStatusChange(opt.value);
+                              if (opt.value === "approved") {
+                                onChecklistRemarkChange(
+                                  item.slNo,
+                                  `${materialDescription || ""}${materialDescription && manufacturer ? " - " : ""}${
+                                    manufacturer || ""
+                                  }`.trim()
+                                );
+                              } else {
+                                onChecklistRemarkChange(item.slNo, "");
+                              }
+                            }}
                             className={`press-effect text-[11px] font-medium px-3 py-2 rounded-sm border transition-colors duration-150
                               ${
                                 makeStatus === opt.value
@@ -144,7 +171,12 @@ const MaterialChecklist = ({
                     {isProvided ? (
                       <button
                         onClick={() => fileInputRefs.current[item.slNo]?.click()}
-                        className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-sm border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+                        className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-sm border transition-colors cursor-pointer
+                          ${
+                            uploadedFile
+                              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15"
+                              : "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
+                          }`}
                         title={uploadedFile ? uploadedFile.name : "Click to upload document"}
                       >
                         {uploadedFile ? (

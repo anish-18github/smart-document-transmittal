@@ -130,6 +130,7 @@ export interface TransmittalFormData {
   product: string;
   brand: string;
   materialRefNo: string;
+  materialRemarks: string;
   areaOfApplication: string;
   makeStatus: MakeStatus | "";
   checklistProvided: Record<number, boolean>;
@@ -156,7 +157,7 @@ export function createDefaultFormData(): TransmittalFormData {
   return {
     transmittalRefNo: generateTransmittalRef(),
     date: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }),
-    projectName: "Horizon Logistics Park",
+    projectName: "Horizon Industrial Park",
     projectNo: "",
     location: "Fetching location…",
     workOrderNo: generateWorkOrderNo(),
@@ -165,6 +166,7 @@ export function createDefaultFormData(): TransmittalFormData {
     product: "",
     brand: "",
     materialRefNo: "",
+    materialRemarks: "",
     areaOfApplication: "",
     makeStatus: "",
     checklistProvided: {},

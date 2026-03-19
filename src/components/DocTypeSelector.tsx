@@ -1,32 +1,32 @@
 import { documentTypes, type DocumentType } from "@/data/approvedVendors";
-import { motion, AnimatePresence } from "framer-motion";
 
 interface DocTypeSelectorProps {
   selected: DocumentType | "";
   onSelect: (type: DocumentType) => void;
+  showTitle?: boolean;
 }
 
-const DocTypeSelector = ({ selected, onSelect }: DocTypeSelectorProps) => {
+const DocTypeSelector = ({ selected, onSelect, showTitle = true }: DocTypeSelectorProps) => {
   return (
     <div>
-      <h2 className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-4">
-        Type of Document
-      </h2>
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-        {documentTypes.map((type) => (
-          <button
-            key={type}
-            onClick={() => onSelect(type)}
-            className={`press-effect text-xs font-medium px-3 py-2.5 rounded-sm border transition-colors duration-150 text-left
-              ${
-                selected === type
-                  ? "border-primary bg-primary/5 text-primary"
-                  : "border-border bg-surface text-foreground hover:border-muted-foreground/30"
-              }`}
-          >
-            {type}
-          </button>
-        ))}
+      {showTitle && (
+        <h2 className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-4">
+          Type of Document
+        </h2>
+      )}
+      <div className="max-w-xs">
+        <select
+          value={selected}
+          onChange={(e) => onSelect(e.target.value as DocumentType)}
+          className="w-full h-9 text-xs rounded-sm border border-border bg-surface px-3 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+        >
+          <option value="">Select document type</option>
+          {documentTypes.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   );

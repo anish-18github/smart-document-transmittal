@@ -85,3 +85,33 @@
     transform: scale(0.98);
   }
 }
+
+  @media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff !important;
+  }
+
+  #root {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* PDF.js canvas pages: one print sheet per page (last page does not force extra break) */
+  .pdf-preview-canvas-page {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .pdf-preview-canvas-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+}

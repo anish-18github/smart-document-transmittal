@@ -4,9 +4,10 @@ import { Package, Layers } from "lucide-react";
 interface MaterialTypeSelectorProps {
   selected: MaterialType | "";
   onSelect: (type: MaterialType) => void;
+  showTitle?: boolean;
 }
 
-const MaterialTypeSelector = ({ selected, onSelect }: MaterialTypeSelectorProps) => {
+const MaterialTypeSelector = ({ selected, onSelect, showTitle = true }: MaterialTypeSelectorProps) => {
   const options: { value: MaterialType; label: string; desc: string; icon: React.ReactNode }[] = [
     {
       value: "single",
@@ -24,9 +25,11 @@ const MaterialTypeSelector = ({ selected, onSelect }: MaterialTypeSelectorProps)
 
   return (
     <div>
-      <h2 className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-4">
-        Material Submittal Type
-      </h2>
+      {showTitle && (
+        <h2 className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-4">
+          Material Submittal Type
+        </h2>
+      )}
       <div className="grid grid-cols-2 gap-4">
         {options.map((opt) => (
           <button
