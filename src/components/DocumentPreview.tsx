@@ -1,17 +1,24 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { type TransmittalFormData, checklistItems } from "@/data/approvedVendors";
 import { Button } from "@/components/ui/button";
 import { PdfPreview } from "@/components/PdfPreview";
+import { cn } from "@/lib/utils";
 import { X, Download, FileText } from "lucide-react";
 
 interface DocumentPreviewProps {
   formData: TransmittalFormData;
-  onClose: () => void;
+  /** Required for modal variant (close button). */
+  onClose?: () => void;
+  /** `embedded` = live side-by-side preview; `modal` = fullscreen overlay (default). */
+  variant?: "modal" | "embedded";
 }
 
-const DocumentPreview = ({ formData, onClose }: DocumentPreviewProps) => {
+const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPreviewProps) => {
+  const previewScrollRef = useRef<HTMLDivElement>(null);
+  const isEmbedded = variant === "embedded";
+
   const handleDownload = () => {
-    // Scroll to top to ensure full first page renders, then trigger print
+    previewScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
     window.scrollTo({ top: 0, behavior: "smooth" });
     setTimeout(() => {
       window.print();
@@ -61,12 +68,25 @@ const DocumentPreview = ({ formData, onClose }: DocumentPreviewProps) => {
   }, [annexureMap, formData.checklistFiles]);
 
   const docIssueDate = formData.date;
-  const pageStyle = {
-    width: "210mm",
-    minHeight: "297mm",
-    padding: "15mm 20mm",
-    boxSizing: "border-box" as const,
-  };
+
+  const pageBoxStyle = useMemo(
+    () =>
+      isEmbedded
+        ? ({
+            width: "100%",
+            maxWidth: "210mm",
+            minHeight: "297mm",
+            padding: "15mm 20mm",
+            boxSizing: "border-box",
+          } as const)
+        : ({
+            width: "210mm",
+            minHeight: "297mm",
+            padding: "15mm 20mm",
+            boxSizing: "border-box",
+          } as const),
+    [isEmbedded]
+  );
 
   const PageFooter = ({
     pageNo,
@@ -106,37 +126,21 @@ const DocumentPreview = ({ formData, onClose }: DocumentPreviewProps) => {
     </div>
   );
 
-  return (
-    <div className="fixed inset-0 z-50 bg-muted-foreground/60 flex flex-col print:bg-surface">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-6 py-3 bg-foreground print:hidden">
-        <span className="text-sm font-medium text-primary-foreground">Document Preview</span>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDownload}
-            className="text-primary-foreground border-primary-foreground/30 hover:bg-primary-foreground/10 rounded-sm"
-          >
-            <Download className="w-4 h-4 mr-1" /> Download
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="text-primary-foreground hover:bg-primary-foreground/10 rounded-sm"
-          >
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Paper - separate page containers */}
-      <div className="flex-1 overflow-auto p-8 print:p-0 flex flex-col items-center gap-8 print:gap-0">
+  const previewBody = (
+    <div
+      ref={previewScrollRef}
+      data-document-preview-scroll
+      className={cn(
+        "flex flex-col items-center gap-8 print:gap-0",
+        isEmbedded
+          ? "flex-1 min-h-0 overflow-y-auto overflow-x-auto p-3 sm:p-4"
+          : "flex-1 overflow-auto p-8 print:p-0"
+      )}
+    >
         {/* Page 1: Transmittal (logo through Status released By block + footer) */}
         <div
           className="bg-surface shadow-2xl mx-auto print:shadow-none flex flex-col"
-          style={pageStyle}
+          style={pageBoxStyle}
         >
           <div className="font-document flex flex-col flex-1 text-neutral-900">
             <LogoHeader />
@@ -353,7 +357,7 @@ const DocumentPreview = ({ formData, onClose }: DocumentPreviewProps) => {
         {/* Page 2: Material Submission Checklist (logo + checklist + legend + footer) */}
         <div
           className="bg-surface shadow-2xl mx-auto print:shadow-none print:break-before-page flex flex-col"
-          style={pageStyle}
+          style={pageBoxStyle}
         >
           <div className="font-document flex flex-col flex-1 text-neutral-900">
             <LogoHeader />
@@ -467,7 +471,7 @@ const DocumentPreview = ({ formData, onClose }: DocumentPreviewProps) => {
               <div
                 key={annexureNo}
                 className="bg-surface shadow-2xl mx-auto mt-8 print:shadow-none print:break-before-page"
-                style={{ width: "210mm", minHeight: "297mm", padding: "15mm 20mm" }}
+                style={pageBoxStyle}
               >
                 <div className="font-document text-foreground">
                   {/* Three-column header with logos - scaled to fit cells */}
@@ -536,7 +540,50 @@ const DocumentPreview = ({ formData, onClose }: DocumentPreviewProps) => {
               </div>
             );
           })}
+    </div>
+  );
+
+  if (isEmbedded) {
+    return (
+      <div className="flex flex-col h-full min-h-[320px] border border-border rounded-sm bg-muted/10 shadow-sm xl:max-h-full print:h-auto print:max-h-none print:border-0 print:shadow-none">
+        <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-surface shrink-0 print:hidden">
+          <span className="text-xs font-semibold text-foreground">Live preview</span>
+          <Button variant="outline" size="sm" onClick={handleDownload} className="rounded-sm h-8 text-xs">
+            <Download className="w-3.5 h-3.5 mr-1" />
+            Print / Save PDF
+          </Button>
+        </div>
+        {previewBody}
       </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-muted-foreground/60 flex flex-col print:bg-surface">
+      <div className="flex items-center justify-between px-6 py-3 bg-foreground print:hidden">
+        <span className="text-sm font-medium text-primary-foreground">Document Preview</span>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownload}
+            className="text-primary-foreground border-primary-foreground/30 hover:bg-primary-foreground/10 rounded-sm"
+          >
+            <Download className="w-4 h-4 mr-1" /> Download
+          </Button>
+          {onClose && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="text-primary-foreground hover:bg-primary-foreground/10 rounded-sm"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+      {previewBody}
     </div>
   );
 };

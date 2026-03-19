@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileText, Eye } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { FileText } from "lucide-react";
 import TransmittalHeader from "@/components/TransmittalHeader";
 import DocTypeSelector from "@/components/DocTypeSelector";
 import MaterialTypeSelector from "@/components/MaterialTypeSelector";
@@ -29,7 +28,6 @@ const section = {
 const Index = () => {
   const [formData, setFormData] = useState<TransmittalFormData>(createDefaultFormData);
   const [masNumber] = useState(() => Math.floor(Math.random() * 900) + 100);
-  const [showPreview, setShowPreview] = useState(false);
 
   // Fetch geolocation on mount
   useEffect(() => {
@@ -104,19 +102,11 @@ const Index = () => {
     }));
   };
 
-  const isFormComplete =
-    formData.documentType === "Material Submittal" &&
-    formData.materialType &&
-    formData.product &&
-    formData.brand &&
-    formData.areaOfApplication &&
-    formData.makeStatus;
-
   return (
     <div className="min-h-screen bg-background">
       {/* Top bar */}
-      <header className="border-b border-border bg-surface">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center gap-3">
+      <header className="border-b border-border bg-surface print:hidden">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 flex items-center gap-3">
           <FileText className="w-5 h-5 text-primary" />
           <h1 className="text-sm font-bold text-foreground tracking-tight">Transmittal of Documents</h1>
           <span className="text-[10px] font-mono text-muted-foreground bg-secondary px-2 py-0.5 rounded-sm ml-auto tabular-nums">
@@ -125,112 +115,108 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
-        {/* Auto-populated header */}
-        <TransmittalHeader formData={formData} />
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6 lg:py-8">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(360px,42%)] gap-8 xl:gap-10 items-start">
+          {/* Left: form */}
+          <div className="space-y-8 min-w-0 print:hidden">
+            <TransmittalHeader formData={formData} />
 
-        {/* Document Type / Material Submittal Type (merged section) */}
-        <section className="bg-surface border border-border rounded-sm p-6">
-          <h2 className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-4">
-            Type of Document / Material Submittal Type
-          </h2>
-          <div className="space-y-4">
-            <DocTypeSelector selected={formData.documentType} onSelect={handleDocTypeSelect} showTitle={false} />
+            {/* Document Type / Material Submittal Type (merged section) */}
+            <section className="bg-surface border border-border rounded-sm p-6">
+              <h2 className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-4">
+                Type of Document / Material Submittal Type
+              </h2>
+              <div className="space-y-4">
+                <DocTypeSelector selected={formData.documentType} onSelect={handleDocTypeSelect} showTitle={false} />
+                <AnimatePresence mode="wait">
+                  {formData.documentType === "Material Submittal" && (
+                    <motion.div
+                      key="material-type"
+                      variants={section}
+                      initial="initial"
+                      animate="animate"
+                      exit="exit"
+                      className="overflow-hidden"
+                    >
+                      <MaterialTypeSelector
+                        selected={formData.materialType}
+                        onSelect={handleMaterialTypeSelect}
+                        showTitle={false}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </section>
+
             <AnimatePresence mode="wait">
-              {formData.documentType === "Material Submittal" && (
-                <motion.div
-                  key="material-type"
+              {formData.documentType === "Material Submittal" && formData.materialType && (
+                <motion.section
+                  key="product-brand"
                   variants={section}
                   initial="initial"
                   animate="animate"
                   exit="exit"
-                  className="overflow-hidden"
+                  className="bg-surface border border-border rounded-sm p-6 overflow-hidden"
                 >
-                  <MaterialTypeSelector
-                    selected={formData.materialType}
-                    onSelect={handleMaterialTypeSelect}
-                    showTitle={false}
+                  <ProductBrandSelector
+                    product={formData.product}
+                    brand={formData.brand}
+                    areaOfApplication={formData.areaOfApplication}
+                    specReference={formData.specReference}
+                    onProductChange={handleProductChange}
+                    onBrandChange={(brand) => update({ brand })}
+                    onAreaChange={(areaOfApplication) => update({ areaOfApplication })}
+                    onSpecChange={(specReference) => update({ specReference })}
                   />
-                </motion.div>
+                </motion.section>
               )}
             </AnimatePresence>
+
+            <AnimatePresence mode="wait">
+              {formData.documentType === "Material Submittal" &&
+                formData.materialType &&
+                formData.product &&
+                formData.brand && (
+                  <motion.section
+                    key="checklist"
+                    variants={section}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    className="bg-surface border border-border rounded-sm p-6 overflow-hidden"
+                  >
+                    <MaterialChecklist
+                      materialRefNo={formData.materialRefNo}
+                      materialDescription={formData.product}
+                      manufacturer={formData.brand}
+                      materialRemarks={formData.materialRemarks}
+                      makeStatus={formData.makeStatus}
+                      checklistProvided={formData.checklistProvided}
+                      checklistRemarks={formData.checklistRemarks}
+                      checklistFiles={formData.checklistFiles}
+                      onMaterialRemarksChange={(materialRemarks) => update({ materialRemarks })}
+                      onMakeStatusChange={(makeStatus: MakeStatus) => update({ makeStatus })}
+                      onChecklistToggle={handleChecklistToggle}
+                      onChecklistRemarkChange={handleChecklistRemarkChange}
+                      onFileUpload={handleFileUpload}
+                    />
+                  </motion.section>
+                )}
+            </AnimatePresence>
+
+            <p className="text-[11px] text-muted-foreground">
+              The document on the right updates as you fill the form. Use <strong>Print / Save PDF</strong> in the
+              preview panel when you are ready.
+            </p>
           </div>
-        </section>
 
-        <AnimatePresence mode="wait">
-          {formData.documentType === "Material Submittal" && formData.materialType && (
-            <motion.section
-              key="product-brand"
-              variants={section}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              className="bg-surface border border-border rounded-sm p-6 overflow-hidden"
-            >
-              <ProductBrandSelector
-                product={formData.product}
-                brand={formData.brand}
-                areaOfApplication={formData.areaOfApplication}
-                specReference={formData.specReference}
-                onProductChange={handleProductChange}
-                onBrandChange={(brand) => update({ brand })}
-                onAreaChange={(areaOfApplication) => update({ areaOfApplication })}
-                onSpecChange={(specReference) => update({ specReference })}
-              />
-            </motion.section>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence mode="wait">
-          {formData.documentType === "Material Submittal" &&
-            formData.materialType &&
-            formData.product &&
-            formData.brand && (
-              <motion.section
-                key="checklist"
-                variants={section}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                className="bg-surface border border-border rounded-sm p-6 overflow-hidden"
-              >
-                <MaterialChecklist
-                  materialRefNo={formData.materialRefNo}
-                  materialDescription={formData.product}
-                  manufacturer={formData.brand}
-                  materialRemarks={formData.materialRemarks}
-                  makeStatus={formData.makeStatus}
-                  checklistProvided={formData.checklistProvided}
-                  checklistRemarks={formData.checklistRemarks}
-                  checklistFiles={formData.checklistFiles}
-                  onMaterialRemarksChange={(materialRemarks) => update({ materialRemarks })}
-                  onMakeStatusChange={(makeStatus: MakeStatus) => update({ makeStatus })}
-                  onChecklistToggle={handleChecklistToggle}
-                  onChecklistRemarkChange={handleChecklistRemarkChange}
-                  onFileUpload={handleFileUpload}
-                />
-              </motion.section>
-            )}
-        </AnimatePresence>
-
-        {/* Generate / Preview Button */}
-        <AnimatePresence>
-          {isFormComplete && (
-            <motion.div variants={section} initial="initial" animate="animate" exit="exit" className="overflow-hidden">
-              <Button onClick={() => setShowPreview(true)} className="w-full h-12 rounded-sm text-sm font-semibold press-effect">
-                <Eye className="w-4 h-4 mr-2" />
-                Preview & Generate Document
-              </Button>
-              <p className="text-[11px] text-muted-foreground text-center mt-2">
-                Ensure all technical attachments are verified against the Approved Vendor List (AVL).
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          {/* Right: live preview (desktop); below form on smaller screens */}
+          <aside className="xl:sticky xl:top-6 xl:h-[calc(100vh-5.5rem)] min-h-[50vh] flex flex-col print:static print:block print:h-auto w-full">
+            <DocumentPreview formData={formData} variant="embedded" />
+          </aside>
+        </div>
       </main>
-
-      {/* Document Preview Modal */}
-      {showPreview && <DocumentPreview formData={formData} onClose={() => setShowPreview(false)} />}
     </div>
   );
 };
