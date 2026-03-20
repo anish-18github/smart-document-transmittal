@@ -1,5 +1,5 @@
 import { useMemo, useRef } from "react";
-import { type TransmittalFormData, checklistItems } from "@/data/approvedVendors";
+import { type TransmittalFormData, checklistItems, type ComplianceTable } from "@/data/approvedVendors";
 import { Button } from "@/components/ui/button";
 import { PdfPreview } from "@/components/PdfPreview";
 import { cn } from "@/lib/utils";
