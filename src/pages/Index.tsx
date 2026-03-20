@@ -212,6 +212,29 @@ const Index = () => {
           )}
       </AnimatePresence>
 
+      {/* Compliance Statement Section */}
+      <AnimatePresence mode="wait">
+        {formData.documentType === "Material Submittal" &&
+          formData.materialType &&
+          formData.product &&
+          formData.brand && (
+            <motion.section
+              key="compliance"
+              variants={section}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="bg-surface border border-border rounded-xl p-5 shadow-sm overflow-hidden"
+            >
+              <ComplianceStatement
+                tables={formData.complianceTables}
+                onTablesChange={handleComplianceTablesChange}
+                onAddTable={handleAddComplianceTable}
+              />
+            </motion.section>
+          )}
+      </AnimatePresence>
+
       <p className="text-[11px] text-muted-foreground pb-4">
         The document on the right updates as you fill the form. Drag the divider to resize panels.
       </p>
