@@ -217,6 +217,7 @@ export function createDefaultFormData(): TransmittalFormData {
     checklistFiles: {},
     transmittedFor: "Approval",
     specReference: "",
+    complianceTables: [],
   };
 }
 
