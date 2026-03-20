@@ -84,6 +84,48 @@ export type MaterialType = "single" | "full_system";
 
 export type MakeStatus = "approved" | "alternative" | "non_tender";
 
+export type ComplianceStatus = "CP" | "NC" | "PC" | "NA";
+
+export interface ComplianceRow {
+  id: string;
+  slNo: number;
+  technicalRequirement: string;
+  limits: string;
+  valuesPerTDS: string;
+  valuesPerMTC: string;
+  status: ComplianceStatus;
+  contractorsResponse: string;
+}
+
+export interface ComplianceTable {
+  id: string;
+  documentDescription: string;
+  rows: ComplianceRow[];
+  attachedFile: File | null;
+}
+
+export function createComplianceRow(slNo: number): ComplianceRow {
+  return {
+    id: crypto.randomUUID(),
+    slNo,
+    technicalRequirement: "",
+    limits: "",
+    valuesPerTDS: "",
+    valuesPerMTC: "",
+    status: "NA",
+    contractorsResponse: "",
+  };
+}
+
+export function createComplianceTable(): ComplianceTable {
+  return {
+    id: crypto.randomUUID(),
+    documentDescription: "",
+    rows: [createComplianceRow(1), createComplianceRow(2), createComplianceRow(3)],
+    attachedFile: null,
+  };
+}
+
 export interface ChecklistItem {
   slNo: number;
   description: string;
@@ -138,6 +180,7 @@ export interface TransmittalFormData {
   checklistFiles: Record<number, File | null>;
   transmittedFor: string;
   specReference: string;
+  complianceTables: ComplianceTable[];
 }
 
 function generateTransmittalRef(): string {
@@ -174,6 +217,7 @@ export function createDefaultFormData(): TransmittalFormData {
     checklistFiles: {},
     transmittedFor: "Approval",
     specReference: "",
+    complianceTables: [],
   };
 }
 

@@ -6,6 +6,7 @@ import DocTypeSelector from "@/components/DocTypeSelector";
 import MaterialTypeSelector from "@/components/MaterialTypeSelector";
 import ProductBrandSelector from "@/components/ProductBrandSelector";
 import MaterialChecklist from "@/components/MaterialChecklist";
+import ComplianceStatement from "@/components/ComplianceStatement";
 import DocumentPreview from "@/components/DocumentPreview";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -18,7 +19,9 @@ import {
   type DocumentType,
   type MaterialType,
   type MakeStatus,
+  type ComplianceTable,
   createDefaultFormData,
+  createComplianceTable,
 } from "@/data/approvedVendors";
 
 const section = {
@@ -108,6 +111,20 @@ const Index = () => {
     }));
   };
 
+  const handleComplianceTablesChange = useCallback(
+    (complianceTables: ComplianceTable[]) => setFormData((prev) => ({ ...prev, complianceTables })),
+    []
+  );
+
+  const handleAddComplianceTable = useCallback(
+    () =>
+      setFormData((prev) => ({
+        ...prev,
+        complianceTables: [...prev.complianceTables, createComplianceTable()],
+      })),
+    []
+  );
+
   const formContent = (
     <div className="space-y-6 min-w-0 print:hidden p-4 sm:p-6 overflow-y-auto h-full">
       <TransmittalHeader formData={formData} />
@@ -190,6 +207,29 @@ const Index = () => {
                 onChecklistToggle={handleChecklistToggle}
                 onChecklistRemarkChange={handleChecklistRemarkChange}
                 onFileUpload={handleFileUpload}
+              />
+            </motion.section>
+          )}
+      </AnimatePresence>
+
+      {/* Compliance Statement Section */}
+      <AnimatePresence mode="wait">
+        {formData.documentType === "Material Submittal" &&
+          formData.materialType &&
+          formData.product &&
+          formData.brand && (
+            <motion.section
+              key="compliance"
+              variants={section}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="bg-surface border border-border rounded-xl p-5 shadow-sm overflow-hidden"
+            >
+              <ComplianceStatement
+                tables={formData.complianceTables}
+                onTablesChange={handleComplianceTablesChange}
+                onAddTable={handleAddComplianceTable}
               />
             </motion.section>
           )}
