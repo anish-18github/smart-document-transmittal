@@ -1,9 +1,11 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState, useCallback } from "react";
 import { type TransmittalFormData, checklistItems, type ComplianceTable } from "@/data/approvedVendors";
 import { Button } from "@/components/ui/button";
 import { PdfPreview } from "@/components/PdfPreview";
 import { cn } from "@/lib/utils";
-import { X, Download, FileText } from "lucide-react";
+import { X, Download, FileText, Loader2 } from "lucide-react";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 
 interface AnnexurePageProps {
   annexureNo: number;
@@ -11,12 +13,15 @@ interface AnnexurePageProps {
   file: File;
   pageBoxStyle: React.CSSProperties;
   LogoHeader: React.FC;
+  pageNumber: number;
+  totalPages: number;
 }
 
-const AnnexurePage = ({ annexureNo, description, file, pageBoxStyle, LogoHeader }: AnnexurePageProps) => (
+const AnnexurePage = ({ annexureNo, description, file, pageBoxStyle, LogoHeader, pageNumber, totalPages }: AnnexurePageProps) => (
   <div
-    className="bg-surface shadow-2xl mx-auto print:shadow-none print:break-before-page flex flex-col"
+    className="bg-surface shadow-2xl mx-auto print:shadow-none print:break-before-page flex flex-col relative"
     style={pageBoxStyle}
+    data-pdf-page
   >
     <div className="font-document text-foreground flex flex-col flex-1">
       <LogoHeader />
@@ -60,33 +65,74 @@ const AnnexurePage = ({ annexureNo, description, file, pageBoxStyle, LogoHeader 
         )}
       </div>
     </div>
+    {/* Page number */}
+    <div className="absolute bottom-3 left-0 right-0 text-center text-[9px] text-muted-foreground">
+      Page {pageNumber} of {totalPages}
+    </div>
   </div>
 );
 
 interface DocumentPreviewProps {
   formData: TransmittalFormData;
-  /** Required for modal variant (close button). */
   onClose?: () => void;
-  /** `embedded` = live side-by-side preview; `modal` = fullscreen overlay (default). */
   variant?: "modal" | "embedded";
 }
 
 const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPreviewProps) => {
   const previewScrollRef = useRef<HTMLDivElement>(null);
   const isEmbedded = variant === "embedded";
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
-  const handleDownload = () => {
-    previewScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    setTimeout(() => {
+  const handleDownload = useCallback(async () => {
+    const scrollContainer = previewScrollRef.current;
+    if (!scrollContainer) return;
+
+    setIsGeneratingPdf(true);
+
+    try {
+      const pages = scrollContainer.querySelectorAll<HTMLElement>("[data-pdf-page]");
+      if (pages.length === 0) return;
+
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pdfWidth = 210;
+      const pdfHeight = 297;
+
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+
+        const canvas = await html2canvas(page, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+          windowWidth: page.scrollWidth,
+          windowHeight: page.scrollHeight,
+        });
+
+        const imgData = canvas.toDataURL("image/jpeg", 0.92);
+
+        if (i > 0) pdf.addPage();
+
+        pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+      }
+
+      const fileName = formData.transmittalRefNo
+        ? `Transmittal_${formData.transmittalRefNo.replace(/[/\\]/g, "_")}.pdf`
+        : "Transmittal_Document.pdf";
+
+      pdf.save(fileName);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      // Fallback to print
       window.print();
-    }, 300);
-  };
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  }, [formData.transmittalRefNo]);
 
   const HORIZON_LOGO_SRC = "/Horizon-logo.png";
   const PMC = "/pmc-logo.png";
   const CONTRACTOR_LOGO = "/contrctor-logo.png";
-
 
   const makeStatusLabel =
     formData.makeStatus === "approved"
@@ -97,7 +143,6 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
           ? "Non Tender Item"
           : "—";
 
-  // Compute annexure map (only checked items, incrementing)
   const annexureMap = useMemo(() => {
     const map: Record<number, number> = {};
     let counter = 0;
@@ -110,7 +155,6 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
     return map;
   }, [formData.checklistProvided]);
 
-  // Collect uploaded files in annexure order
   const annexureFiles = useMemo(() => {
     const files: { annexureNo: number; slNo: number; file: File }[] = [];
     checklistItems.forEach((item) => {
@@ -125,7 +169,6 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
     return files;
   }, [annexureMap, formData.checklistFiles]);
 
-  // Compliance table annexures (continue numbering after checklist annexures)
   const complianceAnnexures = useMemo(() => {
     const lastAnnexure = Object.values(annexureMap).length > 0 ? Math.max(...Object.values(annexureMap)) : 0;
     return formData.complianceTables
@@ -138,6 +181,15 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
   }, [annexureMap, formData.complianceTables]);
 
   const docIssueDate = formData.date;
+
+  // Calculate total pages
+  const totalPages = useMemo(() => {
+    let count = 2; // Page 1 (transmittal) + Page 2 (checklist)
+    count += formData.complianceTables.length; // compliance pages
+    count += annexureFiles.length; // checklist annexures
+    count += complianceAnnexures.length; // compliance annexures
+    return count;
+  }, [formData.complianceTables.length, annexureFiles.length, complianceAnnexures.length]);
 
   const pageBoxStyle = useMemo(
     () =>
@@ -167,10 +219,15 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
     rev: string;
     date: string;
   }) => (
-    <div className="grid grid-cols-3 gap-4 text-[9px] text-muted-foreground pt-4 mt-auto border-t border-border">
-      <div className="text-left">Document No: HIPPUQAP/FM/TDC/{pageNo}</div>
-      <div className="text-center">Rev: {rev}</div>
-      <div className="text-right">Date of issue: {date}</div>
+    <div className="mt-auto pt-4">
+      <div className="grid grid-cols-3 gap-4 text-[9px] text-muted-foreground border-t border-border pt-2">
+        <div className="text-left">Document No: HIPPUQAP/FM/TDC/{pageNo}</div>
+        <div className="text-center">Rev: {rev}</div>
+        <div className="text-right">Date of issue: {date}</div>
+      </div>
+      <div className="text-center text-[9px] text-muted-foreground mt-1">
+        Page {pageNo} of {totalPages}
+      </div>
     </div>
   );
 
@@ -207,10 +264,11 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
           : "flex-1 overflow-auto p-8 print:p-0"
       )}
     >
-        {/* Page 1: Transmittal (logo through Status released By block + footer) */}
+        {/* Page 1: Transmittal */}
         <div
-          className="bg-surface shadow-2xl mx-auto print:shadow-none flex flex-col"
+          className="bg-surface shadow-2xl mx-auto print:shadow-none flex flex-col relative"
           style={pageBoxStyle}
+          data-pdf-page
         >
           <div className="font-document flex flex-col flex-1 text-neutral-900">
             <LogoHeader />
@@ -219,7 +277,7 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
               TRANSMITTAL OF DOCUMENTS
             </h1>
 
-            {/* Header Grid - table style (4 columns) with spacing to avoid overlap */}
+            {/* Header Grid */}
             <div className="text-xs mb-6 border border-foreground/40">
               <div
                 className="grid gap-0"
@@ -246,36 +304,19 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
               </div>
             </div>
 
-            {/* Type of Document - match PDF style with checkboxes */}
+            {/* Type of Document */}
             <div className="text-xs mb-6">
               <div className="font-bold mb-1">Type of Document :</div>
               <div className="grid grid-cols-4 gap-y-1 gap-x-3 max-w-full">
                 {[
-                  "Project Plans",
-                  "Material Submittal",
-                  "Manuals",
-                  "Sample / Catalog",
-                  "Test Reports",
-                  "Calibration Certificate",
-                  "Drawings",
-                  "Design Mix",
-                  "Method Statement",
-                  "Technical Submittal",
-                  "Pre-Qualification",
-                  "Reports",
-                  "Calculations",
-                  "Audit Report",
-                  "RFI",
-                  "Other Certificates",
-                  "Organization Chart",
-                  "Proposals",
-                  "Registers",
-                  "Other Documents",
+                  "Project Plans", "Material Submittal", "Manuals", "Sample / Catalog",
+                  "Test Reports", "Calibration Certificate", "Drawings", "Design Mix",
+                  "Method Statement", "Technical Submittal", "Pre-Qualification", "Reports",
+                  "Calculations", "Audit Report", "RFI", "Other Certificates",
+                  "Organization Chart", "Proposals", "Registers", "Other Documents",
                 ].map((label) => (
                   <span key={label} className="inline-flex items-center gap-1">
-                    <span
-                      className={`inline-flex items-center justify-center w-3 h-3 border border-foreground/60 text-[9px] leading-none`}
-                    >
+                    <span className="inline-flex items-center justify-center w-3 h-3 border border-foreground/60 text-[9px] leading-none">
                       {formData.documentType === label ? "✓" : ""}
                     </span>
                     <span className="whitespace-nowrap">{label}</span>
@@ -284,7 +325,7 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
               </div>
             </div>
 
-            {/* Submittal Details - improved table */}
+            {/* Submittal Details */}
             <h2 className="text-sm font-bold mb-3 border-b border-border pb-1">1. SUBMITTAL DETAILS</h2>
             <div className="text-xs mb-4">
               <span className="font-bold">Area of Application:</span> {formData.areaOfApplication || "—"}
@@ -337,9 +378,7 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
               <span className="inline-flex gap-4 ml-2">
                 {["Information", "Approval", "Checking", "For Construction"].map((opt) => (
                   <span key={opt} className="inline-flex items-center gap-1">
-                    <span
-                      className="inline-flex items-center justify-center w-3 h-3 border border-foreground/60 text-[9px] leading-none"
-                    >
+                    <span className="inline-flex items-center justify-center w-3 h-3 border border-foreground/60 text-[9px] leading-none">
                       {formData.transmittedFor === opt ? "✓" : ""}
                     </span>
                     {opt}
@@ -381,9 +420,7 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
               2. THE CONSULTANT / ENGINEER COMMENTS:
             </h2>
             <div className="min-h-[60px] text-xs mb-4 border-b border-dashed border-border">
-
-                <textarea name="" id="" className="min-w-[4rem]"></textarea>
-
+              <textarea name="" id="" className="min-w-[4rem]"></textarea>
             </div>
 
             {/* Status Legend */}
@@ -424,10 +461,11 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
           </div>
         </div>
 
-        {/* Page 2: Material Submission Checklist (logo + checklist + legend + footer) */}
+        {/* Page 2: Material Submission Checklist */}
         <div
-          className="bg-surface shadow-2xl mx-auto print:shadow-none print:break-before-page flex flex-col"
+          className="bg-surface shadow-2xl mx-auto print:shadow-none print:break-before-page flex flex-col relative"
           style={pageBoxStyle}
+          data-pdf-page
         >
           <div className="font-document flex flex-col flex-1 text-neutral-900">
             <LogoHeader />
@@ -467,35 +505,36 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
               </div>
             </div>
 
-            {/* Improved checklist table */}
+            {/* Checklist table with proper borders */}
             <div className="border border-foreground/30 rounded-sm overflow-hidden">
-              <table className="w-full text-xs">
+              <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-muted/50">
-                    <th className="text-left p-3 font-bold border-r border-foreground/20 w-10">Sl.</th>
-                    <th className="text-left p-3 font-bold border-r border-foreground/20">
+                    <th className="text-left p-3 font-bold border-r border-b border-foreground/20 w-10">Sl.</th>
+                    <th className="text-left p-3 font-bold border-r border-b border-foreground/20">
                       Document / Details Required
                     </th>
-                    <th className="text-center p-3 font-bold border-r border-foreground/20 w-20">Status</th>
-                    <th className="text-center p-3 font-bold border-r border-foreground/20 w-24">Annexure</th>
-                    <th className="text-left p-3 font-bold w-40">Remarks</th>
+                    <th className="text-center p-3 font-bold border-r border-b border-foreground/20 w-20">Status</th>
+                    <th className="text-center p-3 font-bold border-r border-b border-foreground/20 w-24">Annexure</th>
+                    <th className="text-left p-3 font-bold border-b border-foreground/20 w-40">Remarks</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {checklistItems.map((item) => {
+                  {checklistItems.map((item, idx) => {
                     const isProvided = formData.checklistProvided[item.slNo];
                     const annexureNo = annexureMap[item.slNo];
                     const hasFile = !!formData.checklistFiles[item.slNo];
+                    const isLast = idx === checklistItems.length - 1;
 
                     let statusLabel = "NA";
                     if (isProvided && hasFile) {
-                      statusLabel = "CP"; // Comply
+                      statusLabel = "CP";
                     } else if (isProvided && !hasFile) {
-                      statusLabel = "PC"; // Partially comply
+                      statusLabel = "PC";
                     }
 
                     return (
-                      <tr key={item.slNo} className="border-t border-foreground/20">
+                      <tr key={item.slNo} className={cn("border-t border-foreground/20", isLast && "border-b border-foreground/20")}>
                         <td className="p-3 tabular-nums border-r border-foreground/10">{item.slNo}</td>
                         <td className="p-3 border-r border-foreground/10">
                           {item.description}
@@ -520,7 +559,7 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
               </table>
             </div>
 
-            {/* Legend below checklist table */}
+            {/* Legend */}
             <div className="text-[10px] text-muted-foreground mt-4 flex flex-wrap gap-x-6 gap-y-1">
               <span><strong>CP:</strong> Comply</span>
               <span><strong>NC:</strong> Not comply</span>
@@ -534,68 +573,77 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
 
         {/* Compliance Statement Tables */}
         {formData.complianceTables.length > 0 &&
-          formData.complianceTables.map((table, idx) => (
-            <div
-              key={table.id}
-              className="bg-surface shadow-2xl mx-auto print:shadow-none print:break-before-page flex flex-col"
-              style={pageBoxStyle}
-            >
-              <div className="font-document flex flex-col flex-1 text-neutral-900">
-                <LogoHeader />
-                <h1 className="text-center text-base font-bold tracking-wide mb-4 border-b-2 border-neutral-900 pb-2">
-                  COMPLIANCE STATEMENT FOR TECHNICAL REQUIREMENTS
-                </h1>
+          formData.complianceTables.map((table, idx) => {
+            const pageNo = 3 + idx;
+            return (
+              <div
+                key={table.id}
+                className="bg-surface shadow-2xl mx-auto print:shadow-none print:break-before-page flex flex-col relative"
+                style={pageBoxStyle}
+                data-pdf-page
+              >
+                <div className="font-document flex flex-col flex-1 text-neutral-900">
+                  <LogoHeader />
+                  <h1 className="text-center text-base font-bold tracking-wide mb-4 border-b-2 border-neutral-900 pb-2">
+                    COMPLIANCE STATEMENT FOR TECHNICAL REQUIREMENTS
+                  </h1>
 
-                <div className="text-xs mb-3 space-y-1">
-                  <div><span className="font-bold">Document Description:</span> {table.documentDescription || "—"}</div>
-                  <div><span className="font-bold">Manufacturer / Supplier:</span> {formData.brand || "—"}</div>
-                </div>
+                  <div className="text-xs mb-3 space-y-1">
+                    <div><span className="font-bold">Document Description:</span> {table.documentDescription || "—"}</div>
+                    <div><span className="font-bold">Manufacturer / Supplier:</span> {formData.brand || "—"}</div>
+                  </div>
 
-                <div className="border border-foreground/30 rounded-sm overflow-hidden flex-1">
-                  <table className="w-full text-[10px]">
-                    <thead>
-                      <tr className="bg-muted/50">
-                        <th className="text-left p-2 font-bold border-r border-foreground/20 w-8">Sl.</th>
-                        <th className="text-left p-2 font-bold border-r border-foreground/20">Technical Requirements</th>
-                        <th className="text-left p-2 font-bold border-r border-foreground/20 w-[18%]">Limits (IS Code)</th>
-                        <th className="text-left p-2 font-bold border-r border-foreground/20 w-[12%]">TDS</th>
-                        <th className="text-left p-2 font-bold border-r border-foreground/20 w-[12%]">MTC</th>
-                        <th className="text-center p-2 font-bold border-r border-foreground/20 w-[10%]">Status</th>
-                        <th className="text-left p-2 font-bold w-[14%]">Response</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {table.rows.map((row) => (
-                        <tr key={row.id} className="border-t border-foreground/20">
-                          <td className="p-2 tabular-nums border-r border-foreground/10">{row.slNo}</td>
-                          <td className="p-2 border-r border-foreground/10">{row.technicalRequirement || "—"}</td>
-                          <td className="p-2 border-r border-foreground/10">{row.limits || "—"}</td>
-                          <td className="p-2 border-r border-foreground/10">{row.valuesPerTDS || "—"}</td>
-                          <td className="p-2 border-r border-foreground/10">{row.valuesPerMTC || "—"}</td>
-                          <td className="p-2 text-center border-r border-foreground/10 font-semibold">{row.status}</td>
-                          <td className="p-2">{row.contractorsResponse || "—"}</td>
+                  {/* Compliance table with proper bottom border */}
+                  <div className="border border-foreground/30 rounded-sm overflow-hidden flex-1">
+                    <table className="w-full text-[10px] border-collapse">
+                      <thead>
+                        <tr className="bg-muted/50">
+                          <th className="text-left p-2 font-bold border-r border-b border-foreground/20 w-8">Sl.</th>
+                          <th className="text-left p-2 font-bold border-r border-b border-foreground/20">Technical Requirements</th>
+                          <th className="text-left p-2 font-bold border-r border-b border-foreground/20 w-[18%]">Limits (IS Code)</th>
+                          <th className="text-left p-2 font-bold border-r border-b border-foreground/20 w-[12%]">TDS</th>
+                          <th className="text-left p-2 font-bold border-r border-b border-foreground/20 w-[12%]">MTC</th>
+                          <th className="text-center p-2 font-bold border-r border-b border-foreground/20 w-[10%]">Status</th>
+                          <th className="text-left p-2 font-bold border-b border-foreground/20 w-[14%]">Response</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {table.rows.map((row, rowIdx) => {
+                          const isLast = rowIdx === table.rows.length - 1;
+                          return (
+                            <tr key={row.id} className={cn("border-t border-foreground/20", isLast && "border-b border-foreground/30")}>
+                              <td className="p-2 tabular-nums border-r border-foreground/10">{row.slNo}</td>
+                              <td className="p-2 border-r border-foreground/10">{row.technicalRequirement || "—"}</td>
+                              <td className="p-2 border-r border-foreground/10">{row.limits || "—"}</td>
+                              <td className="p-2 border-r border-foreground/10">{row.valuesPerTDS || "—"}</td>
+                              <td className="p-2 border-r border-foreground/10">{row.valuesPerMTC || "—"}</td>
+                              <td className="p-2 text-center border-r border-foreground/10 font-semibold">{row.status}</td>
+                              <td className="p-2">{row.contractorsResponse || "—"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
 
-                <div className="text-[10px] text-muted-foreground mt-3 flex flex-wrap gap-x-6 gap-y-1">
-                  <span><strong>CP:</strong> Comply</span>
-                  <span><strong>NC:</strong> Not Comply</span>
-                  <span><strong>PC:</strong> Partially Comply</span>
-                  <span><strong>NA:</strong> Not Applicable</span>
-                </div>
+                  <div className="text-[10px] text-muted-foreground mt-3 flex flex-wrap gap-x-6 gap-y-1">
+                    <span><strong>CP:</strong> Comply</span>
+                    <span><strong>NC:</strong> Not Comply</span>
+                    <span><strong>PC:</strong> Partially Comply</span>
+                    <span><strong>NA:</strong> Not Applicable</span>
+                  </div>
 
-                <PageFooter pageNo={3 + idx} rev="0" date={docIssueDate} />
+                  <PageFooter pageNo={pageNo} rev="0" date={docIssueDate} />
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
-        {/* Annexure Uploaded Documents - checklist files */}
+        {/* Annexure pages - checklist files */}
         {annexureFiles.length > 0 &&
-          annexureFiles.map(({ annexureNo, slNo, file }) => {
+          annexureFiles.map(({ annexureNo, slNo, file }, idx) => {
             const checklistItem = checklistItems.find((i) => i.slNo === slNo);
+            const pageNo = 2 + formData.complianceTables.length + idx + 1;
             return (
               <AnnexurePage
                 key={`checklist-${annexureNo}`}
@@ -604,22 +652,29 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
                 file={file}
                 pageBoxStyle={pageBoxStyle}
                 LogoHeader={LogoHeader}
+                pageNumber={pageNo}
+                totalPages={totalPages}
               />
             );
           })}
 
-        {/* Annexure Uploaded Documents - compliance table files */}
+        {/* Annexure pages - compliance table files */}
         {complianceAnnexures.length > 0 &&
-          complianceAnnexures.map(({ annexureNo, table, file }) => (
-            <AnnexurePage
-              key={`compliance-${annexureNo}`}
-              annexureNo={annexureNo}
-              description={`Compliance Statement: ${table.documentDescription || "Technical Requirements"}`}
-              file={file}
-              pageBoxStyle={pageBoxStyle}
-              LogoHeader={LogoHeader}
-            />
-          ))}
+          complianceAnnexures.map(({ annexureNo, table, file }, idx) => {
+            const pageNo = 2 + formData.complianceTables.length + annexureFiles.length + idx + 1;
+            return (
+              <AnnexurePage
+                key={`compliance-${annexureNo}`}
+                annexureNo={annexureNo}
+                description={`Compliance Statement: ${table.documentDescription || "Technical Requirements"}`}
+                file={file}
+                pageBoxStyle={pageBoxStyle}
+                LogoHeader={LogoHeader}
+                pageNumber={pageNo}
+                totalPages={totalPages}
+              />
+            );
+          })}
     </div>
   );
 
@@ -628,9 +683,24 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
       <div className="flex flex-col h-full min-h-[320px] border border-border rounded-sm bg-muted/10 shadow-sm xl:max-h-full print:h-auto print:max-h-none print:border-0 print:shadow-none">
         <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-surface shrink-0 print:hidden">
           <span className="text-xs font-semibold text-foreground">Live preview</span>
-          <Button variant="outline" size="sm" onClick={handleDownload} className="rounded-sm h-8 text-xs">
-            <Download className="w-3.5 h-3.5 mr-1" />
-            Print / Save PDF
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownload}
+            disabled={isGeneratingPdf}
+            className="rounded-sm h-8 text-xs"
+          >
+            {isGeneratingPdf ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                Generating…
+              </>
+            ) : (
+              <>
+                <Download className="w-3.5 h-3.5 mr-1" />
+                Download PDF
+              </>
+            )}
           </Button>
         </div>
         {previewBody}
@@ -647,9 +717,19 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
             variant="outline"
             size="sm"
             onClick={handleDownload}
+            disabled={isGeneratingPdf}
             className="text-primary-foreground border-primary-foreground/30 hover:bg-primary-foreground/10 rounded-sm"
           >
-            <Download className="w-4 h-4 mr-1" /> Download
+            {isGeneratingPdf ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                Generating…
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4 mr-1" /> Download PDF
+              </>
+            )}
           </Button>
           {onClose && (
             <Button
