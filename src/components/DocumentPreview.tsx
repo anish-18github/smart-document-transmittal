@@ -5,6 +5,64 @@ import { PdfPreview } from "@/components/PdfPreview";
 import { cn } from "@/lib/utils";
 import { X, Download, FileText } from "lucide-react";
 
+interface AnnexurePageProps {
+  annexureNo: number;
+  description?: string;
+  file: File;
+  pageBoxStyle: React.CSSProperties;
+  LogoHeader: React.FC;
+}
+
+const AnnexurePage = ({ annexureNo, description, file, pageBoxStyle, LogoHeader }: AnnexurePageProps) => (
+  <div
+    className="bg-surface shadow-2xl mx-auto print:shadow-none print:break-before-page flex flex-col"
+    style={pageBoxStyle}
+  >
+    <div className="font-document text-foreground flex flex-col flex-1">
+      <LogoHeader />
+
+      <div
+        className="border border-foreground/40 rounded-sm mb-4 flex flex-col items-center justify-center text-center px-6 py-8"
+        style={{ minHeight: "120mm" }}
+      >
+        <div className="text-xs tracking-wide mb-2">MATERIAL APPROVAL SUBMITTAL</div>
+        <div className="text-lg font-bold mb-4">ANNEXURE - {annexureNo}</div>
+        {description && (
+          <div className="max-w-xl text-xs text-left leading-relaxed">{description}</div>
+        )}
+        <div className="h-px w-32 bg-foreground/60 mt-6 mb-2" />
+        <div className="text-[10px] text-muted-foreground">Supporting document attached</div>
+        <div className="mt-4 text-[10px] text-muted-foreground">
+          (This annexure shall be read in conjunction with approved MAS)
+        </div>
+      </div>
+
+      {/* Preview uploaded file - constrained to page */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {file.type.startsWith("image/") ? (
+          <div className="border border-foreground/20 rounded-sm p-2">
+            <img
+              src={URL.createObjectURL(file)}
+              alt={`Annexure #${annexureNo}`}
+              className="w-full h-auto max-h-[120mm] object-contain mx-auto"
+            />
+          </div>
+        ) : file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf") ? (
+          <PdfPreview file={file} className="border border-foreground/20 rounded-sm overflow-hidden bg-white max-h-[120mm]" />
+        ) : (
+          <div className="border border-foreground/20 rounded-sm p-6 text-center">
+            <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm font-medium text-foreground">{file.name}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Document attached — {(file.size / 1024).toFixed(1)} KB
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+);
+
 interface DocumentPreviewProps {
   formData: TransmittalFormData;
   /** Required for modal variant (close button). */
