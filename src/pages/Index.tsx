@@ -111,6 +111,20 @@ const Index = () => {
     }));
   };
 
+  const handleComplianceTablesChange = useCallback(
+    (complianceTables: ComplianceTable[]) => setFormData((prev) => ({ ...prev, complianceTables })),
+    []
+  );
+
+  const handleAddComplianceTable = useCallback(
+    () =>
+      setFormData((prev) => ({
+        ...prev,
+        complianceTables: [...prev.complianceTables, createComplianceTable()],
+      })),
+    []
+  );
+
   const formContent = (
     <div className="space-y-6 min-w-0 print:hidden p-4 sm:p-6 overflow-y-auto h-full">
       <TransmittalHeader formData={formData} />
