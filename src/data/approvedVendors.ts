@@ -180,6 +180,7 @@ export interface TransmittalFormData {
   checklistFiles: Record<number, File | null>;
   transmittedFor: string;
   specReference: string;
+  complianceTables: ComplianceTable[];
 }
 
 function generateTransmittalRef(): string {
