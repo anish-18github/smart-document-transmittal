@@ -67,6 +67,18 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
     return files;
   }, [annexureMap, formData.checklistFiles]);
 
+  // Compliance table annexures (continue numbering after checklist annexures)
+  const complianceAnnexures = useMemo(() => {
+    const lastAnnexure = Object.values(annexureMap).length > 0 ? Math.max(...Object.values(annexureMap)) : 0;
+    return formData.complianceTables
+      .filter((t) => t.attachedFile)
+      .map((t, i) => ({
+        annexureNo: lastAnnexure + i + 1,
+        table: t,
+        file: t.attachedFile!,
+      }));
+  }, [annexureMap, formData.complianceTables]);
+
   const docIssueDate = formData.date;
 
   const pageBoxStyle = useMemo(
