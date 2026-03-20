@@ -6,6 +6,7 @@ import DocTypeSelector from "@/components/DocTypeSelector";
 import MaterialTypeSelector from "@/components/MaterialTypeSelector";
 import ProductBrandSelector from "@/components/ProductBrandSelector";
 import MaterialChecklist from "@/components/MaterialChecklist";
+import ComplianceStatement from "@/components/ComplianceStatement";
 import DocumentPreview from "@/components/DocumentPreview";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -18,7 +19,9 @@ import {
   type DocumentType,
   type MaterialType,
   type MakeStatus,
+  type ComplianceTable,
   createDefaultFormData,
+  createComplianceTable,
 } from "@/data/approvedVendors";
 
 const section = {
