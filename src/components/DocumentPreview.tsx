@@ -474,84 +474,94 @@ const DocumentPreview = ({ formData, onClose, variant = "modal" }: DocumentPrevi
           </div>
         </div>
 
-        {/* Annexure Uploaded Documents - each as its own page container */}
+        {/* Compliance Statement Tables */}
+        {formData.complianceTables.length > 0 &&
+          formData.complianceTables.map((table, idx) => (
+            <div
+              key={table.id}
+              className="bg-surface shadow-2xl mx-auto print:shadow-none print:break-before-page flex flex-col"
+              style={pageBoxStyle}
+            >
+              <div className="font-document flex flex-col flex-1 text-neutral-900">
+                <LogoHeader />
+                <h1 className="text-center text-base font-bold tracking-wide mb-4 border-b-2 border-neutral-900 pb-2">
+                  COMPLIANCE STATEMENT FOR TECHNICAL REQUIREMENTS
+                </h1>
+
+                <div className="text-xs mb-3 space-y-1">
+                  <div><span className="font-bold">Document Description:</span> {table.documentDescription || "—"}</div>
+                  <div><span className="font-bold">Manufacturer / Supplier:</span> {formData.brand || "—"}</div>
+                </div>
+
+                <div className="border border-foreground/30 rounded-sm overflow-hidden flex-1">
+                  <table className="w-full text-[10px]">
+                    <thead>
+                      <tr className="bg-muted/50">
+                        <th className="text-left p-2 font-bold border-r border-foreground/20 w-8">Sl.</th>
+                        <th className="text-left p-2 font-bold border-r border-foreground/20">Technical Requirements</th>
+                        <th className="text-left p-2 font-bold border-r border-foreground/20 w-[18%]">Limits (IS Code)</th>
+                        <th className="text-left p-2 font-bold border-r border-foreground/20 w-[12%]">TDS</th>
+                        <th className="text-left p-2 font-bold border-r border-foreground/20 w-[12%]">MTC</th>
+                        <th className="text-center p-2 font-bold border-r border-foreground/20 w-[10%]">Status</th>
+                        <th className="text-left p-2 font-bold w-[14%]">Response</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {table.rows.map((row) => (
+                        <tr key={row.id} className="border-t border-foreground/20">
+                          <td className="p-2 tabular-nums border-r border-foreground/10">{row.slNo}</td>
+                          <td className="p-2 border-r border-foreground/10">{row.technicalRequirement || "—"}</td>
+                          <td className="p-2 border-r border-foreground/10">{row.limits || "—"}</td>
+                          <td className="p-2 border-r border-foreground/10">{row.valuesPerTDS || "—"}</td>
+                          <td className="p-2 border-r border-foreground/10">{row.valuesPerMTC || "—"}</td>
+                          <td className="p-2 text-center border-r border-foreground/10 font-semibold">{row.status}</td>
+                          <td className="p-2">{row.contractorsResponse || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="text-[10px] text-muted-foreground mt-3 flex flex-wrap gap-x-6 gap-y-1">
+                  <span><strong>CP:</strong> Comply</span>
+                  <span><strong>NC:</strong> Not Comply</span>
+                  <span><strong>PC:</strong> Partially Comply</span>
+                  <span><strong>NA:</strong> Not Applicable</span>
+                </div>
+
+                <PageFooter pageNo={3 + idx} rev="0" date={docIssueDate} />
+              </div>
+            </div>
+          ))}
+
+        {/* Annexure Uploaded Documents - checklist files */}
         {annexureFiles.length > 0 &&
           annexureFiles.map(({ annexureNo, slNo, file }) => {
             const checklistItem = checklistItems.find((i) => i.slNo === slNo);
-
             return (
-              <div
-                key={annexureNo}
-                className="bg-surface shadow-2xl mx-auto mt-8 print:shadow-none print:break-before-page"
-                style={pageBoxStyle}
-              >
-                <div className="font-document text-foreground">
-                  {/* Three-column header with logos - scaled to fit cells */}
-                  <div className="mb-4 border border-foreground grid grid-cols-3 min-h-[88px]">
-                    <div className="flex items-center justify-center border-r border-foreground bg-white p-3">
-                      <img
-                        src={HORIZON_LOGO_SRC}
-                        alt="Horizon Industrial Parks"
-                        className="h-[72px] w-full max-w-full object-contain"
-                      />
-                    </div>
-                    <div className="flex items-center justify-center border-r border-foreground bg-white p-3">
-                      <img
-                        src={PMC}
-                        alt="PMC"
-                        className="h-[72px] w-full max-w-full object-contain"
-                      />
-                    </div>
-                    <div className="flex items-center justify-center bg-white p-3">
-                      <img
-                        src={CONTRACTOR_LOGO}
-                        alt="Associated Projects Infra"
-                        className="h-[72px] w-full max-w-full object-contain"
-                      />
-                    </div>
-                  </div>
-
-                  <div
-                    className="border border-foreground/40 rounded-sm mb-4 flex flex-col items-center justify-center text-center px-6 py-10"
-                    style={{ minHeight: "180mm" }}
-                  >
-                    <div className="text-xs tracking-wide mb-2">MATERIAL APPROVAL SUBMITTAL</div>
-                    <div className="text-lg font-bold mb-4">ANNEXURE - {annexureNo}</div>
-                    {checklistItem && (
-                      <div className="max-w-xl text-xs text-left leading-relaxed">{checklistItem.description}</div>
-                    )}
-                    <div className="h-px w-32 bg-foreground/60 mt-6 mb-2" />
-                    <div className="text-[10px] text-muted-foreground">Supporting document attached</div>
-                    <div className="mt-6 text-[10px] text-muted-foreground">
-                      (This annexure shall be read in conjunction with approved MAS)
-                    </div>
-                  </div>
-
-                  {/* Preview uploaded file */}
-                  {file.type.startsWith("image/") ? (
-                    <div className="border border-foreground/20 rounded-sm p-2">
-                      <img
-                        src={URL.createObjectURL(file)}
-                        alt={`Annexure #${annexureNo}`}
-                        className="max-w-full h-auto mx-auto"
-                      />
-                    </div>
-                  ) : file.type === "application/pdf" ||
-                    file.name.toLowerCase().endsWith(".pdf") ? (
-                    <PdfPreview file={file} className="border border-foreground/20 rounded-sm overflow-hidden bg-white" />
-                  ) : (
-                    <div className="border border-foreground/20 rounded-sm p-8 text-center">
-                      <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                      <p className="text-sm font-medium text-foreground">{file.name}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Document attached — {(file.size / 1024).toFixed(1)} KB
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <AnnexurePage
+                key={`checklist-${annexureNo}`}
+                annexureNo={annexureNo}
+                description={checklistItem?.description}
+                file={file}
+                pageBoxStyle={pageBoxStyle}
+                LogoHeader={LogoHeader}
+              />
             );
           })}
+
+        {/* Annexure Uploaded Documents - compliance table files */}
+        {complianceAnnexures.length > 0 &&
+          complianceAnnexures.map(({ annexureNo, table, file }) => (
+            <AnnexurePage
+              key={`compliance-${annexureNo}`}
+              annexureNo={annexureNo}
+              description={`Compliance Statement: ${table.documentDescription || "Technical Requirements"}`}
+              file={file}
+              pageBoxStyle={pageBoxStyle}
+              LogoHeader={LogoHeader}
+            />
+          ))}
     </div>
   );
 
